@@ -1,32 +1,34 @@
-CREATE TABLE roles (
+-- Database schema for Control Panel application
+
+-- Roles table
+CREATE TABLE IF NOT EXISTS roles (
   id SERIAL PRIMARY KEY,
   name VARCHAR(50) NOT NULL UNIQUE,
-  permissions JSONB NOT NULL DEFAULT '{}'::jsonb
+  permissions JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE profiles (
+-- Profiles table
+CREATE TABLE IF NOT EXISTS profiles (
   id SERIAL PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
-  rules JSONB NOT NULL DEFAULT '{}'::jsonb
+  rules JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE users (
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
-  username VARCHAR(100) NOT NULL UNIQUE,
-  hashed_password VARCHAR(255) NOT NULL,
+  username VARCHAR(50) NOT NULL UNIQUE,
+  hashed_password VARCHAR(100) NOT NULL,
   role_id INTEGER REFERENCES roles(id),
   profile_id INTEGER REFERENCES profiles(id),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+  last_login TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE audit_logs (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id),
-  action VARCHAR(100) NOT NULL,
-  timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-  ip_address INET
-);
-
--- Insert default admin role
-INSERT INTO roles (name, permissions) 
-VALUES ('admin', '{"all": true}'::jsonb);
+-- Create index on username for faster lookups
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
