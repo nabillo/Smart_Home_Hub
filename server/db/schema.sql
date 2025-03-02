@@ -1,6 +1,6 @@
--- Database schema for Control Panel application
+-- Database schema for Smart Home Management API
 
--- Roles table
+-- Create roles table
 CREATE TABLE IF NOT EXISTS roles (
   id SERIAL PRIMARY KEY,
   name VARCHAR(50) NOT NULL UNIQUE,
@@ -9,26 +9,74 @@ CREATE TABLE IF NOT EXISTS roles (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Profiles table
+-- Create profiles table
 CREATE TABLE IF NOT EXISTS profiles (
   id SERIAL PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
+  name VARCHAR(50) NOT NULL UNIQUE,
   rules JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Users table
+-- Create profile_roles table (many-to-many relationship)
+CREATE TABLE IF NOT EXISTS profile_roles (
+  profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  role_id INTEGER NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+  PRIMARY KEY (profile_id, role_id)
+);
+
+-- Create users table
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
-  username VARCHAR(50) NOT NULL UNIQUE,
+  login VARCHAR(50) NOT NULL UNIQUE,
   hashed_password VARCHAR(100) NOT NULL,
-  role_id INTEGER REFERENCES roles(id),
   profile_id INTEGER REFERENCES profiles(id),
-  last_login TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create index on username for faster lookups
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+-- Create audit_logs table
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id SERIAL PRIMARY KEY,
+  event_type VARCHAR(50) NOT NULL,
+  user_id INTEGER REFERENCES users(id),
+  ip_address VARCHAR(50),
+  user_agent TEXT,
+  details JSONB,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create system_logs table
+CREATE TABLE IF NOT EXISTS system_logs (
+  id SERIAL PRIMARY KEY,
+  level VARCHAR(10) NOT NULL,
+  message TEXT NOT NULL,
+  meta JSONB,
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default roles if they don't exist
+INSERT INTO roles (name, permissions)
+VALUES 
+  ('admin', '{"all": true}'),
+  ('user', '{"read": true, "write": false, "delete": false}'),
+  ('guest', '{"read": true, "write": false, "delete": false}')
+ON CONFLICT (name) DO NOTHING;
+
+-- Insert default profiles if they don't exist
+INSERT INTO profiles (name, rules)
+VALUES 
+  ('admin', '{"canManageUsers": true, "canManageProfiles": true, "canManageRoles": true}'),
+  ('standard', '{"canManageUsers": false, "canManageProfiles": false, "canManageRoles": false}'),
+  ('kids', '{"canManageUsers": false, "canManageProfiles": false, "canManageRoles": false, "restrictedAccess": true}'),
+  ('monitor', '{"canManageUsers": false, "canManageProfiles": false, "canManageRoles": false, "readOnly": true}')
+ON CONFLICT (name) DO NOTHING;
+
+-- Set up default profile-role relationships
+INSERT INTO profile_roles (profile_id, role_id)
+VALUES 
+  ((SELECT id FROM profiles WHERE name = 'admin'), (SELECT id FROM roles WHERE name = 'admin')),
+  ((SELECT id FROM profiles WHERE name = 'standard'), (SELECT id FROM roles WHERE name = 'user')),
+  ((SELECT id FROM profiles WHERE name = 'kids'), (SELECT id FROM roles WHERE name = 'guest')),
+  ((SELECT id FROM profiles WHERE name = 'monitor'), (SELECT id FROM roles WHERE name = 'guest'))
+ON CONFLICT DO NOTHING;

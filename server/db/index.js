@@ -1,27 +1,32 @@
 import pg from 'pg';
 import dotenv from 'dotenv';
-import logger from '../utils/logger.js';
 
 dotenv.config();
 
-const pool = new pg.Pool({
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
+const { Pool } = pg;
+
+// Create a new pool using environment variables
+const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'smarthome',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
 });
 
-// Log database connection events
-pool.on('connect', (client) => {
-  logger.info('New database connection established');
+// Test the connection
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('Database connection error:', err.message);
+  } else {
+    console.log('Database connected successfully');
+  }
 });
 
-pool.on('error', (err, client) => {
-  logger.error('Unexpected database error', { 
-    error: err.message,
-    stack: err.stack
-  });
+// Handle pool errors
+pool.on('error', (err) => {
+  console.error('Unexpected database error:', err.message);
 });
 
 export default pool;

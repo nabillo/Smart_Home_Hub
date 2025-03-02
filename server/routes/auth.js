@@ -2,53 +2,112 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from '../db/index.js';
-import logger from '../utils/logger.js';
+import { auth } from '../middleware/auth.js';
+import { logSecurityEvent, SECURITY_EVENTS } from '../utils/auditLogger.js';
 
 const router = express.Router();
 
+// Login route
 router.post('/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { login, password } = req.body;
     
-    logger.debug('Login attempt', { username });
+    // Validate input
+    if (!login || !password) {
+      return res.status(400).json({ error: 'Login and password are required' });
+    }
     
+    // Find user
     const result = await pool.query(
-      'SELECT u.*, r.name as role FROM users u JOIN roles r ON u.role_id = r.id WHERE username = $1',
-      [username]
+      'SELECT u.id, u.login, u.hashed_password, p.name as profile ' +
+      'FROM users u ' +
+      'JOIN profiles p ON u.profile_id = p.id ' +
+      'WHERE u.login = $1',
+      [login]
     );
-
+    
+    if (result.rows.length === 0) {
+      // Log failed login attempt
+      logSecurityEvent(
+        SECURITY_EVENTS.LOGIN_FAILURE,
+        { login },
+        { 
+          reason: 'User not found',
+          ip: req.ip,
+          userAgent: req.headers['user-agent']
+        }
+      );
+      
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
     const user = result.rows[0];
     
-    if (!user) {
-      logger.warn('Login failed: User not found', { username });
+    // Check password
+    const isMatch = await bcrypt.compare(password, user.hashed_password);
+    
+    if (!isMatch) {
+      // Log failed login attempt
+      logSecurityEvent(
+        SECURITY_EVENTS.LOGIN_FAILURE,
+        { login },
+        { 
+          reason: 'Invalid password',
+          ip: req.ip,
+          userAgent: req.headers['user-agent']
+        }
+      );
+      
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    const isPasswordValid = await bcrypt.compare(password, user.hashed_password);
+    // Create JWT token
+    const payload = {
+      id: user.id,
+      login: user.login,
+      profile: user.profile
+    };
     
-    if (!isPasswordValid) {
-      logger.warn('Login failed: Invalid password', { username });
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
     const token = jwt.sign(
-      { id: user.id, username: user.username, role: user.role },
+      payload,
       process.env.JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '1d' }
     );
-
-    logger.info('User logged in successfully', { 
-      userId: user.id, 
-      username: user.username,
-      role: user.role
-    });
-
+    
+    // Log successful login
+    logSecurityEvent(
+      SECURITY_EVENTS.LOGIN_SUCCESS,
+      payload,
+      { 
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+      }
+    );
+    
     res.json({ token });
   } catch (error) {
-    logger.error('Login error', { 
-      error: error.message,
-      stack: error.stack
-    });
+    req.logger?.error('Login error', { error: error.message }) || 
+      console.error('Login error', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Logout route
+router.post('/logout', auth, (req, res) => {
+  try {
+    // Log logout event
+    logSecurityEvent(
+      SECURITY_EVENTS.LOGOUT,
+      req.user,
+      { 
+        ip: req.ip,
+        userAgent: req.headers['user-agent']
+      }
+    );
+    
+    res.status(200).json({ message: 'Logout successful' });
+  } catch (error) {
+    req.logger.error('Logout error', { error: error.message });
     res.status(500).json({ error: 'Server error' });
   }
 });
