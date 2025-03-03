@@ -6,18 +6,27 @@ import { logSecurityEvent, SECURITY_EVENTS } from '../utils/auditLogger.js';
 
 const router = express.Router();
 
+// System user for logging
+const systemUser = {
+  id: 0,
+  login: 'system',
+  profile: 'system'
+};
+
 // Get all users (admin only)
 router.get('/', auth, adminOnly, async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT u.id, u.login, p.name as profile, u.created_at as "createdAt" FROM users u ' +
       'JOIN profiles p ON u.profile_id = p.id ' +
+      'WHERE u.id != 0 ' + // Exclude system user
       'ORDER BY u.id'
     );
 
     res.json(result.rows);
   } catch (error) {
-    req.logger.error('Get users error', { error: error.message });
+    req.logger?.error('Get users error', { error: error.message }) || 
+      console.error('Get users error', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -51,7 +60,7 @@ router.post('/', auth, adminOnly, async (req, res) => {
 
     // Create user
     const result = await pool.query(
-      'INSERT INTO users (login, hashed_password, profile_id) VALUES ($1, $2, $3) RETURNING id',
+      'INSERT INTO users (id, login, hashed_password, profile_id) VALUES (nextval(\'users_id_seq\'), $1, $2, $3) RETURNING id',
       [login, hashedPassword, profileId]
     );
 
@@ -68,7 +77,8 @@ router.post('/', auth, adminOnly, async (req, res) => {
 
     res.status(201).json({ id: result.rows[0].id, message: 'User created successfully' });
   } catch (error) {
-    req.logger.error('Create user error', { error: error.message });
+    req.logger?.error('Create user error', { error: error.message }) || 
+      console.error('Create user error', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -96,7 +106,8 @@ router.get('/:userId', auth, async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (error) {
-    req.logger.error('Get user error', { error: error.message });
+    req.logger?.error('Get user error', { error: error.message }) || 
+      console.error('Get user error', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -143,7 +154,8 @@ router.put('/:userId', auth, adminOnly, async (req, res) => {
     
     res.json({ message: 'User updated successfully' });
   } catch (error) {
-    req.logger.error('Update user error', { error: error.message });
+    req.logger?.error('Update user error', { error: error.message }) || 
+      console.error('Update user error', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -153,9 +165,9 @@ router.delete('/:userId', auth, adminOnly, async (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
     
-    // Prevent deleting self
-    if (req.user.id === userId) {
-      return res.status(400).json({ error: 'Cannot delete your own account' });
+    // Prevent deleting system user or self
+    if (userId === 0 || req.user.id === userId) {
+      return res.status(400).json({ error: 'Cannot delete this user' });
     }
     
     // Check if user exists
@@ -181,7 +193,8 @@ router.delete('/:userId', auth, adminOnly, async (req, res) => {
     
     res.status(204).send();
   } catch (error) {
-    req.logger.error('Delete user error', { error: error.message });
+    req.logger?.error('Delete user error', { error: error.message }) || 
+      console.error('Delete user error', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -195,6 +208,11 @@ router.put('/:userId/profile', auth, adminOnly, async (req, res) => {
     // Validate input
     if (!profile) {
       return res.status(400).json({ error: 'Profile is required' });
+    }
+    
+    // Prevent modifying system user
+    if (userId === 0) {
+      return res.status(400).json({ error: 'Cannot modify system user' });
     }
     
     // Check if user exists
@@ -228,7 +246,8 @@ router.put('/:userId/profile', auth, adminOnly, async (req, res) => {
     
     res.json({ message: 'Profile assigned successfully' });
   } catch (error) {
-    req.logger.error('Assign profile error', { error: error.message });
+    req.logger?.error('Assign profile error', { error: error.message }) || 
+      console.error('Assign profile error', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

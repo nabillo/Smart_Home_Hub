@@ -7,6 +7,13 @@ import { logSecurityEvent, SECURITY_EVENTS } from '../utils/auditLogger.js';
 
 const router = express.Router();
 
+// System user for logging
+const systemUser = {
+  id: 0,
+  login: 'system',
+  profile: 'system'
+};
+
 // Login route
 router.post('/login', async (req, res) => {
   try {
@@ -30,8 +37,9 @@ router.post('/login', async (req, res) => {
       // Log failed login attempt
       logSecurityEvent(
         SECURITY_EVENTS.LOGIN_FAILURE,
-        { login },
+        systemUser,
         { 
+          attemptedLogin: login,
           reason: 'User not found',
           ip: req.ip,
           userAgent: req.headers['user-agent']
@@ -50,8 +58,9 @@ router.post('/login', async (req, res) => {
       // Log failed login attempt
       logSecurityEvent(
         SECURITY_EVENTS.LOGIN_FAILURE,
-        { login },
+        systemUser,
         { 
+          attemptedLogin: login,
           reason: 'Invalid password',
           ip: req.ip,
           userAgent: req.headers['user-agent']
@@ -107,7 +116,8 @@ router.post('/logout', auth, (req, res) => {
     
     res.status(200).json({ message: 'Logout successful' });
   } catch (error) {
-    req.logger.error('Logout error', { error: error.message });
+    req.logger?.error('Logout error', { error: error.message }) || 
+      console.error('Logout error', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

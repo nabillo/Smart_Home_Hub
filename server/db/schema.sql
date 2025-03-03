@@ -25,9 +25,11 @@ CREATE TABLE IF NOT EXISTS profile_roles (
   PRIMARY KEY (profile_id, role_id)
 );
 
--- Create users table
+-- Create users table with explicit ID sequence
+CREATE SEQUENCE IF NOT EXISTS users_id_seq START WITH 1;
+
 CREATE TABLE IF NOT EXISTS users (
-  id SERIAL PRIMARY KEY,
+  id INTEGER PRIMARY KEY,
   login VARCHAR(50) NOT NULL UNIQUE,
   hashed_password VARCHAR(100) NOT NULL,
   profile_id INTEGER REFERENCES profiles(id),
@@ -60,7 +62,8 @@ INSERT INTO roles (name, permissions)
 VALUES 
   ('admin', '{"all": true}'),
   ('user', '{"read": true, "write": false, "delete": false}'),
-  ('guest', '{"read": true, "write": false, "delete": false}')
+  ('guest', '{"read": true, "write": false, "delete": false}'),
+  ('system', '{"all": true}')
 ON CONFLICT (name) DO NOTHING;
 
 -- Insert default profiles if they don't exist
@@ -69,7 +72,8 @@ VALUES
   ('admin', '{"canManageUsers": true, "canManageProfiles": true, "canManageRoles": true}'),
   ('standard', '{"canManageUsers": false, "canManageProfiles": false, "canManageRoles": false}'),
   ('kids', '{"canManageUsers": false, "canManageProfiles": false, "canManageRoles": false, "restrictedAccess": true}'),
-  ('monitor', '{"canManageUsers": false, "canManageProfiles": false, "canManageRoles": false, "readOnly": true}')
+  ('monitor', '{"canManageUsers": false, "canManageProfiles": false, "canManageRoles": false, "readOnly": true}'),
+  ('system', '{"canManageUsers": true, "canManageProfiles": true, "canManageRoles": true, "isSystem": true}')
 ON CONFLICT (name) DO NOTHING;
 
 -- Set up default profile-role relationships
@@ -78,5 +82,16 @@ VALUES
   ((SELECT id FROM profiles WHERE name = 'admin'), (SELECT id FROM roles WHERE name = 'admin')),
   ((SELECT id FROM profiles WHERE name = 'standard'), (SELECT id FROM roles WHERE name = 'user')),
   ((SELECT id FROM profiles WHERE name = 'kids'), (SELECT id FROM roles WHERE name = 'guest')),
-  ((SELECT id FROM profiles WHERE name = 'monitor'), (SELECT id FROM roles WHERE name = 'guest'))
+  ((SELECT id FROM profiles WHERE name = 'monitor'), (SELECT id FROM roles WHERE name = 'guest')),
+  ((SELECT id FROM profiles WHERE name = 'system'), (SELECT id FROM roles WHERE name = 'system'))
 ON CONFLICT DO NOTHING;
+
+-- Create system user with ID 0 if it doesn't exist
+INSERT INTO users (id, login, hashed_password, profile_id)
+VALUES (
+  0, 
+  'system', 
+  '$2a$10$eCrTaU0TyDSQKlCBUPxp6.ddy5rKV0Ug9VKt.ZKzOVu0ZXP8X4Iry', -- hashed 'system' password
+  (SELECT id FROM profiles WHERE name = 'system')
+)
+ON CONFLICT (id) DO NOTHING;

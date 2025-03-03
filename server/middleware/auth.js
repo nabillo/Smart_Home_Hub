@@ -13,10 +13,17 @@ export const auth = async (req, res, next) => {
     req.user = decoded;
     next();
   } catch (error) {
+    // Get system user for logging
+    const systemUser = {
+      id: 0,
+      login: 'system',
+      profile: 'system'
+    };
+    
     // Log unauthorized access attempt
     logSecurityEvent(
       SECURITY_EVENTS.UNAUTHORIZED_ACCESS,
-      null,
+      systemUser,
       { 
         ip: req.ip,
         userAgent: req.headers['user-agent'],

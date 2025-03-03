@@ -23,16 +23,26 @@ if (!fs.existsSync(auditLogDir)) {
 // Audit log file path
 const auditLogFile = path.join(auditLogDir, `audit-${new Date().toISOString().split('T')[0]}.log`);
 
+// System user for fallback
+const SYSTEM_USER = {
+  id: 0,
+  login: 'system',
+  profile: 'system'
+};
+
 // Log security events
 const logSecurityEvent = async (event, user, details = {}) => {
+  // Use system user if no user provided
+  const eventUser = user || SYSTEM_USER;
+  
   const eventData = {
     timestamp: new Date().toISOString(),
     event,
-    user: user ? {
-      id: user.id,
-      login: user.login,
-      profile: user.profile
-    } : 'anonymous',
+    user: {
+      id: eventUser.id,
+      login: eventUser.login,
+      profile: eventUser.profile
+    },
     ip: details.ip || 'unknown',
     userAgent: details.userAgent || 'unknown',
     ...details
@@ -58,7 +68,7 @@ const logSecurityEvent = async (event, user, details = {}) => {
       'INSERT INTO audit_logs (event_type, user_id, ip_address, user_agent, details) VALUES ($1, $2, $3, $4, $5)',
       [
         event,
-        user ? user.id : null,
+        eventUser.id,
         details.ip || 'unknown',
         details.userAgent || 'unknown',
         JSON.stringify(details)

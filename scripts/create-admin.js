@@ -6,6 +6,13 @@ import { logSecurityEvent, SECURITY_EVENTS } from '../server/utils/auditLogger.j
 // Load environment variables
 dotenv.config();
 
+// System user for logging
+const systemUser = {
+  id: 0,
+  login: 'system',
+  profile: 'system'
+};
+
 // Function to create admin user
 async function createAdminUser() {
   try {
@@ -39,7 +46,7 @@ async function createAdminUser() {
     
     // Create admin user
     const result = await pool.query(
-      'INSERT INTO users (login, hashed_password, profile_id) VALUES ($1, $2, $3) RETURNING id',
+      'INSERT INTO users (id, login, hashed_password, profile_id) VALUES (nextval(\'users_id_seq\'), $1, $2, $3) RETURNING id',
       [adminLogin, hashedPassword, profileId]
     );
     
@@ -50,7 +57,7 @@ async function createAdminUser() {
     // Log admin creation
     await logSecurityEvent(
       SECURITY_EVENTS.USER_CREATED,
-      { id: 0, login: 'system', profile: 'system' },
+      systemUser,
       { 
         newUserId: userId,
         newUserLogin: adminLogin,
