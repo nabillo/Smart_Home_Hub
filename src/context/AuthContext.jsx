@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import jwt_decode from 'jwt-decode';
+import * as jwtDecode from 'jwt-decode';
 
 const AuthContext = createContext();
 
@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        const decoded = jwt_decode(token);
+        const decoded = jwtDecode.jwtDecode(token);
         const currentTime = Date.now() / 1000;
         
         if (decoded.exp > currentTime) {
@@ -34,7 +34,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = (token) => {
     localStorage.setItem('token', token);
-    const decoded = jwt_decode(token);
+    const decoded = jwtDecode.jwtDecode(token);
     setCurrentUser(decoded);
     setIsAuthenticated(true);
   };
