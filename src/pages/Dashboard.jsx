@@ -26,7 +26,7 @@ export default function Dashboard() {
       }
     };
 
-    if (currentUser?.role === 'admin') {
+    if (currentUser?.profile === 'admin') {
       fetchUsers();
     } else {
       setLoading(false);
@@ -48,10 +48,10 @@ export default function Dashboard() {
           Welcome, {currentUser?.username}
         </Typography>
         <Typography variant="subtitle1" gutterBottom>
-          Role: {currentUser?.role}
+          Profile: {currentUser?.profile}
         </Typography>
 
-        {currentUser?.role === 'admin' && (
+        {currentUser?.profile === 'admin' && (
           <Box sx={{ mt: 4 }}>
             <Typography variant="h5" gutterBottom>
               User Management
@@ -66,8 +66,7 @@ export default function Dashboard() {
                   <TableHead>
                     <TableRow>
                       <TableCell>ID</TableCell>
-                      <TableCell>Username</TableCell>
-                      <TableCell>Role</TableCell>
+                      <TableCell>Login</TableCell>
                       <TableCell>Profile</TableCell>
                       <TableCell>Created At</TableCell>
                     </TableRow>
@@ -76,8 +75,7 @@ export default function Dashboard() {
                     {users.map((user) => (
                       <TableRow key={user.id}>
                         <TableCell>{user.id}</TableCell>
-                        <TableCell>{user.username}</TableCell>
-                        <TableCell>{user.role}</TableCell>
+                        <TableCell>{user.login}</TableCell>
                         <TableCell>{user.profile}</TableCell>
                         <TableCell>{new Date(user.created_at).toLocaleString()}</TableCell>
                       </TableRow>
