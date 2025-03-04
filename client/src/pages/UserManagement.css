@@ -1,0 +1,56 @@
+.user-management {
+  padding: 1rem 0;
+}
+
+.user-management h1 {
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+.user-management-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1.5rem;
+}
+
+.user-form-container {
+  background-color: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.user-form-container h2 {
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+.user-list {
+  background-color: white;
+  border-radius: var(--border-radius);
+  box-shadow: var(--box-shadow);
+  padding: 1.5rem;
+}
+
+.user-list h2 {
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+.profile-select {
+  padding: 0.25rem;
+  border-radius: var(--border-radius);
+  border: 1px solid #ddd;
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+small {
+  display: block;
+  margin-top: 0.25rem;
+  color: #6c757d;
+}
