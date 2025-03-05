@@ -20,7 +20,7 @@ const auth = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // Add user from payload
-    req.user = decoded;
+    req.user = decoded.user;
     next();
   } catch (err) {
     logger.error(`Auth middleware error: ${err.message}`);
